@@ -30,8 +30,28 @@ load_dotenv_file()
 
 app = Flask(__name__)
 
-YANDEX_MAPS_API_KEY = os.environ.get("YANDEX_MAPS_API_KEY", "").strip()
-YANDEX_MAPS_SUGGEST_API_KEY = os.environ.get("YANDEX_MAPS_SUGGEST_API_KEY", "").strip()
+def get_first_env(*names):
+    for name in names:
+        value = os.environ.get(name, "").strip()
+        if value:
+            return value
+    return ""
+
+
+YANDEX_MAPS_API_KEY = get_first_env(
+    "YANDEX_MAPS_API_KEY",
+    "YANDEX_API_KEY",
+    "YANDEX_MAP_API_KEY",
+    "API_KEY",
+)
+YANDEX_MAPS_SUGGEST_API_KEY = get_first_env(
+    "YANDEX_MAPS_SUGGEST_API_KEY",
+    "YANDEX_SUGGEST_API_KEY",
+    "YANDEX_MAPS_API_KEY",
+    "YANDEX_API_KEY",
+    "YANDEX_MAP_API_KEY",
+    "API_KEY",
+)
 DEFAULT_DELIVERY_CITY = "Москва"
 DEFAULT_MAP_CENTER = [37.6176, 55.7558]
 
