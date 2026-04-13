@@ -764,6 +764,10 @@ nav {
     color: var(--text-primary);
 }
 
+.catalog-filters-toggle {
+    display: none;
+}
+
 .filter-section {
     margin-bottom: 25px;
     padding-bottom: 20px;

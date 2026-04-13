@@ -5,9 +5,14 @@
         <div class="sidebar-card glass-card">
             <h3><i class="fas fa-filter"></i> Фильтры</h3>
 
-            <div class="filter-section">
+            <button type="button" class="catalog-filters-toggle" data-filters-toggle aria-expanded="false">
+                <span><i class="fas fa-filter"></i> Фильтры</span>
+                <i class="fas fa-chevron-down"></i>
+            </button>
+            <div class="catalog-filters-body" data-filters-body>
+            <div class="filter-section" data-filter-section>
                 <h4><i class="fas fa-tags"></i> Категории</h4>
-<div class="category-list">
+<div class="category-list filter-section-content" data-filter-content>
                     <a href="{{ all_products_url }}" class="category-link {% if not current_category %}active{% endif %}">
                         <span><i class="fas fa-th-large"></i> Все товары</span>
                         <span class="count">{{ category_counts.all }}</span>
@@ -35,9 +40,9 @@
                 </div>
             </div>
 
-            <div class="filter-section">
+            <div class="filter-section" data-filter-section>
                 <h4><i class="fas fa-dollar-sign"></i> Цена</h4>
-                <div class="price-filters">
+                <div class="price-filters filter-section-content" data-filter-content>
                     <a href="{{ url_for('products_page', category=current_category, price='all', sort=current_sort) }}" class="price-link {% if current_price == 'all' or not current_price %}active{% endif %}">
                         <i class="fas fa-chart-line"></i> Все цены
                     </a>
@@ -53,9 +58,9 @@
                 </div>
             </div>
 
-            <div class="filter-section">
+            <div class="filter-section" data-filter-section>
                 <h4><i class="fas fa-arrow-up-wide-short"></i> Сортировка</h4>
-                <div class="sort-filters">
+                <div class="sort-filters filter-section-content" data-filter-content>
                     <a href="{{ url_for('products_page', category=current_category, sort='default', price=current_price) }}" class="sort-link {% if current_sort == 'default' or not current_sort %}active{% endif %}">
                         <i class="fas fa-clock"></i> По умолчанию
                     </a>
@@ -74,6 +79,7 @@
             <a href="{{ url_for('products_page') }}" class="reset-filters">
                 <i class="fas fa-undo-alt"></i> Сбросить всё
             </a>
+            </div>
         </div>
     </aside>
 
@@ -206,5 +212,73 @@ function showNotice(message) {
         notice.classList.remove('show');
     }, 2000);
 }
+
+(function() {
+    const sidebarToggle = document.querySelector('[data-filters-toggle]');
+    const filtersBody = document.querySelector('[data-filters-body]');
+    const filterSections = Array.from(document.querySelectorAll('[data-filter-section]'));
+    const mobileQuery = window.matchMedia('(max-width: 768px)');
+
+    function setSidebarState(expanded) {
+        if (!sidebarToggle || !filtersBody) return;
+        sidebarToggle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+        filtersBody.hidden = !expanded;
+    }
+
+    function setSectionState(section, expanded) {
+        if (!section) return;
+        const heading = section.querySelector('h4');
+        const content = section.querySelector('[data-filter-content]');
+        if (!heading || !content) return;
+        section.classList.toggle('is-collapsed', !expanded);
+        heading.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+        content.hidden = !expanded;
+    }
+
+    function applyMobileFilterState() {
+        if (!sidebarToggle || !filtersBody) return;
+
+        if (mobileQuery.matches) {
+            if (!sidebarToggle.dataset.mobileReady) {
+                setSidebarState(false);
+                filterSections.forEach(function(section, index) {
+                    setSectionState(section, index === 0);
+                });
+                sidebarToggle.dataset.mobileReady = 'true';
+            }
+        } else {
+            setSidebarState(true);
+            filterSections.forEach(function(section) {
+                setSectionState(section, true);
+            });
+            delete sidebarToggle.dataset.mobileReady;
+        }
+    }
+
+    if (sidebarToggle) {
+        sidebarToggle.addEventListener('click', function() {
+            const expanded = sidebarToggle.getAttribute('aria-expanded') === 'true';
+            setSidebarState(!expanded);
+        });
+    }
+
+    filterSections.forEach(function(section) {
+        const heading = section.querySelector('h4');
+        if (!heading) return;
+        heading.addEventListener('click', function() {
+            if (!mobileQuery.matches) return;
+            const expanded = heading.getAttribute('aria-expanded') === 'true';
+            setSectionState(section, !expanded);
+        });
+    });
+
+    if (typeof mobileQuery.addEventListener === 'function') {
+        mobileQuery.addEventListener('change', applyMobileFilterState);
+    } else if (typeof mobileQuery.addListener === 'function') {
+        mobileQuery.addListener(applyMobileFilterState);
+    }
+
+    applyMobileFilterState();
+})();
 </script>
 {% endblock %}

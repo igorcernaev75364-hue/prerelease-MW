@@ -907,6 +907,10 @@
 
 /* Адаптация для мобильных */
 @media (max-width: 768px) {
+    .checkout-header {
+        gap: 10px;
+    }
+
     .payment-card {
         padding: 14px 16px;
         gap: 12px;
@@ -976,6 +980,33 @@
     .detect-location-btn {
         padding: 12px 14px;
         font-size: 0.82rem;
+        line-height: 1.35;
+        white-space: normal;
+        border-radius: 18px;
+    }
+
+    .map-status {
+        align-items: flex-start;
+        font-size: 0.78rem;
+        line-height: 1.45;
+    }
+
+    .map-status span {
+        flex: 1;
+    }
+
+    .address-label {
+        align-items: flex-start;
+        line-height: 1.35;
+    }
+
+    .address-input-group {
+        gap: 10px;
+    }
+
+    .address-hint {
+        align-items: flex-start;
+        line-height: 1.45;
     }
 
     .map-widget-panel {
@@ -1479,6 +1510,125 @@ function getOrderItemIcon(id) {
             }
         });
     }
+
+    function applyResolvedLocation(coords, resolvedAddress, statusMessage) {
+        if (!Array.isArray(coords) || !coords.length) {
+            throw new Error('invalid-location');
+        }
+
+        updatePlacemark(coords);
+
+        if (mapInstance) {
+            mapInstance.setCenter(coords, 16, { duration: 250 });
+        }
+
+        const normalizedAddress = (resolvedAddress || '').trim();
+        if (normalizedAddress) {
+            if (mapSearchInput) {
+                mapSearchInput.value = normalizedAddress;
+            }
+            if (addressInput && !addressInput.value.trim()) {
+                addressInput.value = normalizedAddress;
+                syncCheckoutSummary();
+            }
+        }
+
+        setMapStatus(
+            statusMessage || 'Местоположение определено. Проверьте адрес и при необходимости уточните его вручную.',
+            'success'
+        );
+    }
+
+    detectCurrentLocation = function() {
+        if (!window.ymaps || !mapInstance) {
+            setMapStatus('Сначала дождитесь загрузки карты.', 'error');
+            return;
+        }
+
+        setLocationButtonState(true);
+        setMapStatus('Определяем текущее местоположение…', null);
+
+        let requestSettled = false;
+        const loadingTimeout = window.setTimeout(function() {
+            if (requestSettled) return;
+            setMapStatus('Определение местоположения заняло больше времени обычного. Можно подождать ещё немного или ввести адрес вручную.', 'error');
+        }, 9000);
+
+        function finishLocationRequest(message, state) {
+            if (requestSettled) return;
+            requestSettled = true;
+            window.clearTimeout(loadingTimeout);
+            setLocationButtonState(false);
+            setMapStatus(message, state);
+        }
+
+        function tryYandexGeolocation() {
+            return ymaps.geolocation.get({
+                provider: 'auto',
+                mapStateAutoApply: false,
+                autoReverseGeocode: true
+            }).then(function(result) {
+                const geoObject = result.geoObjects.get(0);
+                if (!geoObject) {
+                    throw new Error('empty-geolocation');
+                }
+
+                const coords = geoObject.geometry.getCoordinates();
+                const resolvedAddress =
+                    (typeof geoObject.getAddressLine === 'function' && geoObject.getAddressLine()) ||
+                    geoObject.properties.get('text') ||
+                    geoObject.properties.get('name') ||
+                    '';
+
+                applyResolvedLocation(
+                    coords,
+                    resolvedAddress,
+                    'Местоположение определено. Проверьте адрес и при необходимости уточните дом, подъезд и квартиру.'
+                );
+                finishLocationRequest('Местоположение определено. Проверьте адрес и при необходимости уточните дом, подъезд и квартиру.', 'success');
+            });
+        }
+
+        function reverseGeocodeBrowserCoords(latitude, longitude) {
+            return ymaps.geocode([longitude, latitude], { results: 1 }).then(function(result) {
+                const geoObject = result.geoObjects.get(0);
+                const resolvedAddress = geoObject
+                    ? (geoObject.getAddressLine() || geoObject.get('text') || '')
+                    : '';
+
+                applyResolvedLocation(
+                    [longitude, latitude],
+                    resolvedAddress,
+                    'Местоположение определено по GPS устройства. Проверьте адрес и при необходимости уточните его.'
+                );
+                finishLocationRequest('Местоположение определено по GPS устройства. Проверьте адрес и при необходимости уточните его.', 'success');
+            });
+        }
+
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(function(position) {
+                reverseGeocodeBrowserCoords(position.coords.latitude, position.coords.longitude)
+                    .catch(function() {
+                        tryYandexGeolocation().catch(function() {
+                            finishLocationRequest('Не удалось определить местоположение автоматически. Проверьте разрешение браузера или введите адрес вручную.', 'error');
+                        });
+                    });
+            }, function() {
+                tryYandexGeolocation().catch(function() {
+                    finishLocationRequest('Не удалось определить местоположение автоматически. Проверьте разрешение браузера или введите адрес вручную.', 'error');
+                });
+            }, {
+                enableHighAccuracy: true,
+                timeout: 15000,
+                maximumAge: 60000
+            });
+            return;
+        }
+
+        tryYandexGeolocation().catch(function() {
+            finishLocationRequest('Не удалось определить местоположение автоматически. Проверьте разрешение браузера или введите адрес вручную.', 'error');
+        });
+    };
 
     if (detectLocationBtn) {
         detectLocationBtn.addEventListener('click', detectCurrentLocation);
