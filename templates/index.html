@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="landing animate__animated animate__fadeInUp">
+    <h1 class="animate__animated animate__fadeInDown">M W STORE</h1>
+    <p class="animate__animated animate__fadeInUp animate__delay-1s">Минималистичный интернет-магазин с дизайном в стиле iOS 26</p>
+    <div class="landing-buttons animate__animated animate__fadeInUp animate__delay-2s">
+        <a href="{{ url_for('products_page') }}" class="btn-shop">
+            <i class="fas fa-arrow-right"></i> Начать покупки
+        </a>
+    </div>
+</div>
+{% endblock %}
