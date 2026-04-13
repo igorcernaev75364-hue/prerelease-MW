@@ -323,8 +323,8 @@
 
                 <p class="agreement-text">
                     Нажимая кнопку, вы соглашаетесь с
-                    <a href="#">условиями доставки</a> и
-                    <a href="#">политикой обработки данных</a>
+                    <a href="{{ url_for('delivery_terms') }}" target="_blank" rel="noopener noreferrer" data-legal-link="delivery">условиями доставки</a> и
+                    <a href="{{ url_for('privacy_policy') }}" target="_blank" rel="noopener noreferrer" data-legal-link="privacy">политикой обработки персональных данных</a>
                 </p>
             </div>
         </div>
@@ -1061,11 +1061,13 @@ function getOrderItemIcon(id) {
     const summaryContactPhone = document.getElementById('summary-contact-phone');
     const summaryContactEmail = document.getElementById('summary-contact-email');
     const summaryPaymentMethod = document.getElementById('summary-payment-method');
+    const legalLinks = Array.from(document.querySelectorAll('[data-legal-link]'));
     const stepPanels = Array.from(document.querySelectorAll('.checkout-step-panel'))
         .sort(function(a, b) {
             return Number(a.dataset.step || 0) - Number(b.dataset.step || 0);
         });
     let currentStepIndex = 0;
+    let legalDocsWereOpened = false;
 
     function setMapStatus(message, state) {
         if (!mapStatus) return;
@@ -1108,6 +1110,19 @@ function getOrderItemIcon(id) {
         });
     }
 
+    function openLegalDocsOnce() {
+        if (legalDocsWereOpened || !legalLinks.length) return;
+
+        legalLinks.forEach(function(link) {
+            const href = link.getAttribute('href');
+            if (href) {
+                window.open(href, '_blank', 'noopener');
+            }
+        });
+
+        legalDocsWereOpened = true;
+    }
+
     function activateStep(stepIndex) {
         currentStepIndex = Math.max(0, Math.min(stepIndex, stepPanels.length - 1));
 
@@ -1117,6 +1132,7 @@ function getOrderItemIcon(id) {
 
         if (currentStepIndex === 2) {
             syncCheckoutSummary();
+            openLegalDocsOnce();
         }
 
         if (currentStepIndex === 0 && mapInstance) {

@@ -1161,6 +1161,7 @@
     .checkout-page,
     .about-page,
     .product-page,
+    .legal-page,
     .catalog-container {
         padding-left: 10px;
         padding-right: 10px;
@@ -1171,6 +1172,7 @@
     .order-summary,
     .cart-page,
     .product-detail-card,
+    .legal-card,
     .team-card,
     .team-footer {
         padding: 16px;
@@ -1187,6 +1189,20 @@
 
     .current-price {
         font-size: 1.5rem;
+    }
+
+    .legal-header h1 {
+        font-size: 1.4rem;
+    }
+
+    .legal-header p,
+    .legal-section p,
+    .agreement-text {
+        font-size: 0.8rem;
+    }
+
+    .legal-section {
+        padding: 18px 0;
     }
 
     .product-main-image {

@@ -773,6 +773,16 @@ def about():
     return render_template("about.html")
 
 
+@app.route("/delivery-terms")
+def delivery_terms():
+    return render_template("delivery_terms.html")
+
+
+@app.route("/privacy-policy")
+def privacy_policy():
+    return render_template("privacy_policy.html")
+
+
 if __name__ == "__main__":
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
