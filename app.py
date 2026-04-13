@@ -255,6 +255,34 @@ def calculate_total(cart):
     return total
 
 
+def normalize_cart(raw_cart):
+    normalized_cart = {}
+    if not isinstance(raw_cart, dict):
+        return normalized_cart
+
+    for raw_pid, raw_qty in raw_cart.items():
+        try:
+            pid = str(int(raw_pid))
+            qty = int(raw_qty)
+        except (TypeError, ValueError):
+            continue
+
+        if qty > 0:
+            normalized_cart[pid] = qty
+
+    return normalized_cart
+
+
+def get_cart():
+    cart = normalize_cart(session.get("cart", {}))
+    session["cart"] = cart
+    return cart
+
+
+def save_cart(cart):
+    session["cart"] = normalize_cart(cart)
+
+
 VALID_CATEGORIES = {"tshirts", "hoodies", "sweatshirts", "mugs", "accessories"}
 VALID_PRICE_RANGES = {"all", "0-1000", "1000-2000", "2000+"}
 VALID_SORT_OPTIONS = {"default", "price_asc", "price_desc", "name"}
@@ -386,7 +414,7 @@ def product_detail(pid):
 
 @app.route("/cart")
 def cart():
-    cart_data = session.get("cart", {})
+    cart_data = get_cart()
     cart_products = []
     total = 0
 
@@ -410,7 +438,7 @@ def cart():
 @app.route("/api/cart")
 def cart_api():
     """API endpoint для обновления виджета корзины"""
-    cart_data = session.get("cart", {})
+    cart_data = get_cart()
     cart_products = []
     total = 0
 
@@ -435,9 +463,10 @@ def cart_api():
 
 @app.route("/add_to_cart/<int:pid>", methods=["POST"])
 def add_to_cart(pid):
-    cart = session.get("cart", {})
-    cart[pid] = cart.get(pid, 0) + 1
-    session["cart"] = cart
+    cart = get_cart()
+    cart_key = str(pid)
+    cart[cart_key] = cart.get(cart_key, 0) + 1
+    save_cart(cart)
 
     # Если запрос через AJAX, возвращаем JSON
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
@@ -451,19 +480,20 @@ def add_to_cart(pid):
 def update_cart(pid):
     """Обновление количества товара через форму (для страницы корзины)"""
     action = request.form.get("action")
-    cart = session.get("cart", {})
+    cart = get_cart()
+    cart_key = str(pid)
 
-    if pid in cart:
+    if cart_key in cart:
         if action == "increase":
-            cart[pid] = cart[pid] + 1
+            cart[cart_key] = cart[cart_key] + 1
         elif action == "decrease":
-            cart[pid] = cart[pid] - 1
-            if cart[pid] <= 0:
-                del cart[pid]
+            cart[cart_key] = cart[cart_key] - 1
+            if cart[cart_key] <= 0:
+                del cart[cart_key]
         elif action == "remove":
-            del cart[pid]
+            del cart[cart_key]
 
-    session["cart"] = cart
+    save_cart(cart)
     return redirect(url_for("cart"))
 
 
@@ -473,51 +503,54 @@ def api_update_cart(pid):
     data = request.get_json()
     change = data.get('change', 0)
 
-    cart = session.get("cart", {})
+    cart = get_cart()
+    cart_key = str(pid)
 
-    if pid in cart:
-        cart[pid] = cart[pid] + change
-        if cart[pid] <= 0:
-            del cart[pid]
+    if cart_key in cart:
+        cart[cart_key] = cart[cart_key] + change
+        if cart[cart_key] <= 0:
+            del cart[cart_key]
     elif change > 0:
-        cart[pid] = change
+        cart[cart_key] = change
 
-    session["cart"] = cart
+    save_cart(cart)
     return jsonify({"status": "ok", "cart": cart})
 
 
 @app.route("/api/remove_from_cart/<int:pid>", methods=["POST"])
 def api_remove_from_cart(pid):
     """API endpoint для удаления товара (для мини-корзины)"""
-    cart = session.get("cart", {})
+    cart = get_cart()
+    cart_key = str(pid)
 
-    if pid in cart:
-        del cart[pid]
+    if cart_key in cart:
+        del cart[cart_key]
 
-    session["cart"] = cart
+    save_cart(cart)
     return jsonify({"status": "ok", "cart": cart})
 
 
 @app.route("/remove_from_cart/<int:pid>", methods=["POST"])
 def remove_from_cart(pid):
     """Удаление товара через форму (для страницы корзины)"""
-    cart = session.get("cart", {})
+    cart = get_cart()
+    cart_key = str(pid)
 
-    if pid in cart:
-        del cart[pid]
+    if cart_key in cart:
+        del cart[cart_key]
 
-    session["cart"] = cart
+    save_cart(cart)
     return redirect(url_for("cart"))
 
 
 @app.route("/clear_cart", methods=["POST"])
 def clear_cart():
-    session["cart"] = {}
+    save_cart({})
     return redirect(url_for("cart"))
 
 @app.route("/checkout")
 def checkout():
-    cart_data = session.get("cart", {})
+    cart_data = get_cart()
     if not cart_data:
         return redirect(url_for("cart"))
 
@@ -561,8 +594,8 @@ def place_order():
                 "delivery_address": request.form.get("delivery_address")  # Добавляем адрес доставки
             },
             "payment_method": request.form.get("payment"),
-            "cart": session.get("cart", {}),
-            "total": calculate_total(session.get("cart", {}))
+            "cart": get_cart(),
+            "total": calculate_total(get_cart())
         }
         cart_items = []
         for pid, qty in order_data["cart"].items():
@@ -585,7 +618,7 @@ def place_order():
         txt_filename = f"{ORDERS_DIR}/order_{order_data['order_id']}.txt"
         save_order_to_txt(order_data, txt_filename)
 
-        session["cart"] = {}
+        save_cart({})
         return render_template("order_success.html", order_id=order_data["order_id"])
 
     except Exception as e:
