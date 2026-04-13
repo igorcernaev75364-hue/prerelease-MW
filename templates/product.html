@@ -10,50 +10,100 @@
 
     <div class="product-detail-card glass-card animate__animated animate__fadeInUp">
         <div class="product-gallery">
-            <div class="product-main-image">
+            <div class="product-main-image" data-product-main-image>
                 {% if product.main_image %}
-                <img src="{{ url_for('static', filename='images/products/' + product.main_image) }}" 
-                     alt="{{ product.title }}">
+                <img src="{{ url_for('static', filename='images/products/' + product.main_image) }}"
+                     alt="{{ product.title }}"
+                     data-product-main-img>
                 {% else %}
                 <div class="product-icon-large">
-                    {% if product.id == 1 %}
+                    {% if product.category == 'tshirts' %}
                         <i class="fas fa-shirt"></i>
-                    {% elif product.id == 2 %}
+                    {% elif product.category == 'hoodies' %}
+                        <i class="fas fa-shirt"></i>
+                    {% elif product.category == 'sweatshirts' %}
+                        <i class="fas fa-vest"></i>
+                    {% elif product.category == 'mugs' %}
                         <i class="fas fa-mug-hot"></i>
-                    {% elif product.id == 3 %}
-                        <i class="fas fa-shirt"></i>
+                    {% else %}
+                        <i class="fas fa-bag-shopping"></i>
                     {% endif %}
                 </div>
                 {% endif %}
             </div>
-            
-            {% if product.model_image %}
+
+            <div class="product-gallery-caption">
+                <span class="product-gallery-badge">
+                    <i class="fas fa-expand"></i>
+                    Фото товара
+                </span>
+                {% if product.model_image %}
+                <span class="product-gallery-note">Нажмите на миниатюру, чтобы переключить изображение</span>
+                {% endif %}
+            </div>
+
+            {% if product.main_image or product.model_image %}
             <div class="product-thumbnails">
-                <div class="thumbnail active">
-                    <img src="{{ url_for('static', filename='images/products/' + product.main_image) }}" 
+                {% if product.main_image %}
+                <button type="button"
+                        class="thumbnail active"
+                        data-product-thumb
+                        data-full-src="{{ url_for('static', filename='images/products/' + product.main_image) }}"
+                        data-full-alt="{{ product.title }}">
+                    <img src="{{ url_for('static', filename='images/products/' + product.main_image) }}"
                          alt="Основное фото">
-                </div>
-                <div class="thumbnail">
-                    <img src="{{ url_for('static', filename='images/products/' + product.model_image) }}" 
-                         alt="Фотосессия">
-                </div>
+                </button>
+                {% endif %}
+                {% if product.model_image %}
+                <button type="button"
+                        class="thumbnail"
+                        data-product-thumb
+                        data-full-src="{{ url_for('static', filename='images/products/' + product.model_image) }}"
+                        data-full-alt="{{ product.title }} — фото на модели">
+                    <img src="{{ url_for('static', filename='images/products/' + product.model_image) }}"
+                         alt="Фото на модели">
+                </button>
+                {% endif %}
             </div>
             {% endif %}
         </div>
 
         <div class="product-detail-info">
-            <h1 class="product-detail-title">{{ product.title }}</h1>
-            
-            <div class="product-detail-price">
-                <span class="current-price">{{ product.price }}₽</span>
+            <div class="product-detail-topline">
+                <span class="product-eyebrow">
+                    <i class="fas {% if product.category == 'tshirts' %}fa-shirt{% elif product.category == 'hoodies' %}fa-shirt{% elif product.category == 'sweatshirts' %}fa-vest{% elif product.category == 'mugs' %}fa-mug-hot{% else %}fa-bag-shopping{% endif %}"></i>
+                    {{ product.category_name }}
+                </span>
             </div>
 
-            <div class="product-detail-description">
+            <h1 class="product-detail-title">{{ product.title }}</h1>
+
+            <div class="product-price-card">
+                <span class="current-price">{{ product.price }}₽</span>
+                <span class="product-price-note">Финальная цена товара без скрытых доплат. Доставка рассчитывается отдельно при оформлении.</span>
+            </div>
+
+            <div class="product-quick-benefits">
+                <div class="quick-benefit">
+                    <i class="fas fa-truck-fast"></i>
+                    <span>Быстрая отправка</span>
+                </div>
+                <div class="quick-benefit">
+                    <i class="fas fa-box-open"></i>
+                    <span>Аккуратная упаковка</span>
+                </div>
+                <div class="quick-benefit">
+                    <i class="fas fa-shield-heart"></i>
+                    <span>Проверенное качество</span>
+                </div>
+            </div>
+
+            <div class="product-info-card product-detail-description">
                 <h3><i class="fas fa-info-circle"></i> Описание</h3>
                 <p>{{ product.description }}</p>
             </div>
 
-            <div class="product-detail-features">
+            <div class="product-info-card product-detail-features">
                 <h3><i class="fas fa-star"></i> Характеристики</h3>
                 <ul class="features-list">
                     {% for feature in product.features %}
@@ -63,7 +113,7 @@
             </div>
 
             <div class="product-detail-actions">
-                <form action="{{ url_for('add_to_cart', pid=product.id) }}" method="POST" style="flex: 2;">
+                <form action="{{ url_for('add_to_cart', pid=product.id) }}" method="POST" class="product-cart-form">
                     <button type="submit" class="btn-add-large">
                         <i class="fas fa-cart-plus"></i>
                         Добавить в корзину
@@ -75,10 +125,12 @@
                 </a>
             </div>
 
+            <p class="product-action-note">Если хотите сначала продолжить выбор товаров, добавьте позицию в корзину и возвращайтесь к оформлению позже.</p>
+
             <div class="product-meta">
                 <div class="meta-item">
                     <i class="fas fa-truck"></i>
-                    <span>Бесплатная доставка</span>
+                    <span>Бережная доставка</span>
                 </div>
                 <div class="meta-item">
                     <i class="fas fa-undo-alt"></i>
@@ -92,4 +144,36 @@
         </div>
     </div>
 </div>
+
+<script>
+(function() {
+    const mainImage = document.querySelector('[data-product-main-img]');
+    const thumbs = Array.from(document.querySelectorAll('[data-product-thumb]'));
+
+    if (!mainImage || thumbs.length === 0) {
+        return;
+    }
+
+    thumbs.forEach(function(thumb) {
+        thumb.addEventListener('click', function() {
+            const nextSrc = thumb.getAttribute('data-full-src');
+            const nextAlt = thumb.getAttribute('data-full-alt');
+
+            if (!nextSrc) {
+                return;
+            }
+
+            mainImage.src = nextSrc;
+            if (nextAlt) {
+                mainImage.alt = nextAlt;
+            }
+
+            thumbs.forEach(function(item) {
+                item.classList.remove('active');
+            });
+            thumb.classList.add('active');
+        });
+    });
+})();
+</script>
 {% endblock %}
