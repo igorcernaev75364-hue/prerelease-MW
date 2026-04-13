@@ -1,0 +1,44 @@
+/* ===== ДЕСКТОПНАЯ ВЕРСИЯ (ширина > 1024px) ===== */
+@media (min-width: 1025px) {
+    .catalog-container {
+        display: flex;
+        flex-direction: row;
+        gap: 30px;
+    }
+
+    .catalog-sidebar {
+        width: 280px;
+        flex-shrink: 0;
+    }
+
+    .products-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 24px;
+    }
+
+    .product-card {
+        padding: 25px 20px;
+    }
+
+    .product-image-container {
+        height: 180px;
+    }
+}
+/* ===== СТРАНИЦА ТОВАРА (ДЕСКТОП) ===== */
+@media (min-width: 1025px) {
+    .product-detail-card {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 50px;
+        padding: 50px;
+    }
+
+    .product-detail-title {
+        font-size: 2.5rem;
+    }
+
+    .current-price {
+        font-size: 2rem;
+    }
+}
