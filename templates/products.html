@@ -100,6 +100,15 @@
         <div class="products-grid">
             {% for product in products %}
             <div class="product-card">
+                <button
+                    type="button"
+                    class="favorite-toggle {% if product.id in favorite_ids_int %}is-active{% endif %}"
+                    data-favorite-button
+                    data-product-id="{{ product.id }}"
+                    aria-label="Добавить в избранное">
+                    <i class="{% if product.id in favorite_ids_int %}fas{% else %}far{% endif %} fa-heart"></i>
+                </button>
+
                 <div class="product-image-container">
                     {% if product.main_image %}
                     <img src="{{ url_for('static', filename='images/products/' + product.main_image) }}"
@@ -279,6 +288,46 @@ function showNotice(message) {
     }
 
     applyMobileFilterState();
+})();
+
+(function() {
+    const favoriteButtons = Array.from(document.querySelectorAll('[data-favorite-button]'));
+
+    function updateFavoriteButton(button, isFavorite) {
+        button.classList.toggle('is-active', isFavorite);
+        const icon = button.querySelector('i');
+        if (icon) {
+            icon.className = `${isFavorite ? 'fas' : 'far'} fa-heart`;
+        }
+    }
+
+    favoriteButtons.forEach(function(button) {
+        button.addEventListener('click', function() {
+            const productId = button.getAttribute('data-product-id');
+            fetch(`/api/toggle_favorite/${productId}`, {
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(async function(response) {
+                const data = await response.json();
+                if (!response.ok) {
+                    throw data;
+                }
+                updateFavoriteButton(button, data.is_favorite);
+                showNotice(data.is_favorite ? '❤ Товар добавлен в избранное' : 'Товар убран из избранного');
+            })
+            .catch(function(error) {
+                if (error && error.message === 'login_required') {
+                    window.location.href = "{{ url_for('login', next=url_for('products_page')) }}";
+                    return;
+                }
+                showNotice('Не удалось обновить избранное');
+            });
+        });
+    });
 })();
 </script>
 {% endblock %}

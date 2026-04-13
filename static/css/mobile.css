@@ -56,6 +56,15 @@
         width: 100%;
         justify-content: space-between;
         gap: 8px;
+        flex-wrap: wrap;
+    }
+
+    .nav-inline-form {
+        flex: 1 1 auto;
+    }
+
+    .nav-button {
+        width: 100%;
     }
 
     .cart-count-header {
@@ -364,6 +373,13 @@
 
     .btn-add i {
         font-size: 0.85rem;
+    }
+
+    .favorite-toggle {
+        width: 38px;
+        height: 38px;
+        top: 10px;
+        right: 10px;
     }
 
     /* ---------- КОРЗИНА ---------- */
@@ -1086,6 +1102,50 @@
         font-size: 0.7rem;
         color: var(--accent);
         background: rgba(192, 132, 252, 0.15);
+    }
+
+    .flash-stack,
+    .auth-page,
+    .profile-page {
+        padding-left: 12px;
+        padding-right: 12px;
+    }
+
+    .auth-card,
+    .profile-hero,
+    .profile-card {
+        padding: 18px;
+    }
+
+    .auth-form,
+    .profile-form,
+    .profile-grid,
+    .profile-favorites-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .auth-header h1,
+    .profile-hero h1 {
+        font-size: 1.55rem;
+    }
+
+    .profile-hero {
+        flex-direction: column;
+    }
+
+    .profile-stat {
+        min-width: calc(50% - 6px);
+        flex: 1 1 calc(50% - 6px);
+    }
+
+    .profile-favorite-item {
+        padding: 12px;
+    }
+
+    .profile-order-top,
+    .profile-order-meta {
+        flex-direction: column;
+        align-items: flex-start;
     }
 }
 

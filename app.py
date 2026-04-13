@@ -1,9 +1,12 @@
-from flask import Flask, render_template, session, request, jsonify, redirect, url_for
+from flask import Flask, render_template, session, request, jsonify, redirect, url_for, flash, g
 from werkzeug.utils import secure_filename
+from werkzeug.security import generate_password_hash, check_password_hash
 import os
 import json
 from datetime import datetime
 import uuid
+from functools import wraps
+from datetime import timedelta
 
 
 def load_dotenv_file(dotenv_path=".env"):
@@ -60,6 +63,7 @@ DEFAULT_MAP_CENTER = [37.6176, 55.7558]
 # Настройки для Render
 app.config["SECRET_KEY"] = get_first_env("SECRET_KEY", "FLASK_SECRET_KEY") or "mw-store-dev-secret"
 app.config["SESSION_PERMANENT"] = False
+app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(days=365)
 
 # Создаём папку для сессий
 
@@ -73,6 +77,10 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 ORDERS_DIR = "orders"
 if not os.path.exists(ORDERS_DIR):
     os.makedirs(ORDERS_DIR)
+
+USERS_DIR = "users"
+if not os.path.exists(USERS_DIR):
+    os.makedirs(USERS_DIR)
 
 # Инициализируем Session
 
@@ -273,14 +281,251 @@ def normalize_cart(raw_cart):
     return normalized_cart
 
 
+def normalize_favorites(raw_favorites):
+    normalized_favorites = []
+    if not isinstance(raw_favorites, list):
+        return normalized_favorites
+
+    for raw_pid in raw_favorites:
+        try:
+            pid = str(int(raw_pid))
+        except (TypeError, ValueError):
+            continue
+        if pid not in normalized_favorites:
+            normalized_favorites.append(pid)
+
+    return normalized_favorites
+
+
+def sanitize_username(username):
+    value = (username or "").strip().lower()
+    safe = []
+    for char in value:
+        if char.isalnum() or char in {"_", "-"}:
+            safe.append(char)
+    return "".join(safe)
+
+
+def get_user_path(username):
+    return os.path.join(USERS_DIR, f"{sanitize_username(username)}.json")
+
+
+def default_user_record(username):
+    return {
+        "username": sanitize_username(username),
+        "password_hash": "",
+        "full_name": "",
+        "phone": "",
+        "email": "",
+        "delivery_address": "",
+        "favorites": [],
+        "cart": {},
+        "orders": [],
+        "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+    }
+
+
+def normalize_user_record(user):
+    normalized = default_user_record(user.get("username", ""))
+    normalized.update(user or {})
+    normalized["username"] = sanitize_username(normalized.get("username", ""))
+    normalized["cart"] = normalize_cart(normalized.get("cart", {}))
+    normalized["favorites"] = normalize_favorites(normalized.get("favorites", []))
+    normalized["orders"] = normalized.get("orders", []) if isinstance(normalized.get("orders"), list) else []
+    return normalized
+
+
+def load_user(username):
+    username = sanitize_username(username)
+    if not username:
+        return None
+
+    path = get_user_path(username)
+    if not os.path.exists(path):
+        return None
+
+    with open(path, "r", encoding="utf-8") as user_file:
+        return normalize_user_record(json.load(user_file))
+
+
+def save_user(user):
+    normalized = normalize_user_record(user)
+    if not normalized["username"]:
+        raise ValueError("username is required")
+
+    with open(get_user_path(normalized["username"]), "w", encoding="utf-8") as user_file:
+        json.dump(normalized, user_file, ensure_ascii=False, indent=2)
+
+    return normalized
+
+
+def get_current_user():
+    if hasattr(g, "current_user"):
+        return g.current_user
+
+    username = sanitize_username(session.get("user_id", ""))
+    g.current_user = load_user(username) if username else None
+    return g.current_user
+
+
+def login_user(user, remember=False):
+    session["user_id"] = user["username"]
+    session.permanent = bool(remember)
+    g.current_user = user
+
+
+def logout_user():
+    session.pop("user_id", None)
+    session.permanent = False
+    g.current_user = None
+
+
+def get_favorites():
+    user = get_current_user()
+    if user:
+        return normalize_favorites(user.get("favorites", []))
+
+    favorites = normalize_favorites(session.get("favorites", []))
+    session["favorites"] = favorites
+    return favorites
+
+
+def save_favorites(favorites):
+    normalized = normalize_favorites(favorites)
+    user = get_current_user()
+    if user:
+        user["favorites"] = normalized
+        save_user(user)
+        g.current_user = user
+        return
+
+    session["favorites"] = normalized
+
+
 def get_cart():
+    user = get_current_user()
+    if user:
+        normalized_cart = normalize_cart(user.get("cart", {}))
+        if normalized_cart != user.get("cart", {}):
+            user["cart"] = normalized_cart
+            save_user(user)
+            g.current_user = user
+        return normalized_cart
+
     cart = normalize_cart(session.get("cart", {}))
     session["cart"] = cart
     return cart
 
 
 def save_cart(cart):
-    session["cart"] = normalize_cart(cart)
+    normalized = normalize_cart(cart)
+    user = get_current_user()
+    if user:
+        user["cart"] = normalized
+        save_user(user)
+        g.current_user = user
+        return
+
+    session["cart"] = normalized
+
+
+def merge_guest_state_into_user(user):
+    guest_cart = normalize_cart(session.get("cart", {}))
+    guest_favorites = normalize_favorites(session.get("favorites", []))
+
+    merged_cart = normalize_cart(user.get("cart", {}))
+    for pid, qty in guest_cart.items():
+        merged_cart[pid] = merged_cart.get(pid, 0) + qty
+
+    merged_favorites = normalize_favorites(user.get("favorites", []))
+    for pid in guest_favorites:
+        if pid not in merged_favorites:
+            merged_favorites.append(pid)
+
+    user["cart"] = merged_cart
+    user["favorites"] = merged_favorites
+    save_user(user)
+
+    session.pop("cart", None)
+    session.pop("favorites", None)
+    g.current_user = user
+    return user
+
+
+def get_product_by_id(pid):
+    return next((p for p in products if p["id"] == int(pid)), None)
+
+
+def build_cart_items(cart_data):
+    cart_products = []
+    total = 0
+
+    for pid, qty in cart_data.items():
+        product = get_product_by_id(pid)
+        if not product:
+            continue
+
+        cart_item = {
+            "id": product["id"],
+            "title": product["title"],
+            "price": product["price"],
+            "qty": qty,
+            "subtotal": qty * product["price"],
+            "main_image": product.get("main_image"),
+            "category": product.get("category"),
+            "category_name": product.get("category_name"),
+        }
+        cart_products.append(cart_item)
+        total += cart_item["subtotal"]
+
+    return cart_products, total
+
+
+def build_order_summary(order_data):
+    return {
+        "order_id": order_data["order_id"],
+        "timestamp": order_data["timestamp"],
+        "total": order_data["total"],
+        "payment_method": order_data["payment_method"],
+        "delivery_address": order_data["customer"].get("delivery_address", ""),
+        "items": order_data.get("cart_items", []),
+    }
+
+
+def login_required(view):
+    @wraps(view)
+    def wrapped_view(*args, **kwargs):
+        if not get_current_user():
+            flash("Сначала войдите в аккаунт.", "error")
+            return redirect(url_for("login", next=request.path))
+        return view(*args, **kwargs)
+
+    return wrapped_view
+
+
+@app.before_request
+def load_current_user():
+    get_current_user()
+
+
+@app.context_processor
+def inject_user_context():
+    user = get_current_user()
+    cart = get_cart()
+    favorites = get_favorites()
+    favorite_ids_int = []
+    for pid in favorites:
+        try:
+            favorite_ids_int.append(int(pid))
+        except (TypeError, ValueError):
+            continue
+    return {
+        "current_user": user,
+        "favorite_ids": favorites,
+        "favorite_ids_int": favorite_ids_int,
+        "favorite_count": len(favorites),
+        "cart_items_count": sum(cart.values()),
+    }
 
 
 VALID_CATEGORIES = {"tshirts", "hoodies", "sweatshirts", "mugs", "accessories"}
@@ -363,6 +608,163 @@ def index():
     return render_template("index.html")
 
 
+@app.route("/register", methods=["GET", "POST"])
+def register():
+    if get_current_user():
+        return redirect(url_for("profile"))
+
+    if request.method == "POST":
+        username = sanitize_username(request.form.get("username", ""))
+        password = request.form.get("password", "")
+        remember = bool(request.form.get("remember_me"))
+
+        if len(username) < 3:
+            flash("Логин должен содержать минимум 3 символа.", "error")
+        elif len(password) < 6:
+            flash("Пароль должен содержать минимум 6 символов.", "error")
+        elif load_user(username):
+            flash("Пользователь с таким логином уже существует.", "error")
+        else:
+            user = default_user_record(username)
+            user["password_hash"] = generate_password_hash(password)
+            user["full_name"] = request.form.get("full_name", "").strip()
+            user["phone"] = request.form.get("phone", "").strip()
+            user["email"] = request.form.get("email", "").strip()
+            user["delivery_address"] = request.form.get("delivery_address", "").strip()
+            user = save_user(user)
+            user = merge_guest_state_into_user(user)
+            login_user(user, remember=remember)
+            flash("Аккаунт создан. Данные сохранены в вашем профиле.", "success")
+            return redirect(url_for("profile"))
+
+    return render_template("register.html")
+
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if get_current_user():
+        return redirect(url_for("profile"))
+
+    if request.method == "POST":
+        username = sanitize_username(request.form.get("username", ""))
+        password = request.form.get("password", "")
+        remember = bool(request.form.get("remember_me"))
+        user = load_user(username)
+
+        if not user or not check_password_hash(user.get("password_hash", ""), password):
+            flash("Неверный логин или пароль.", "error")
+        else:
+            user = merge_guest_state_into_user(user)
+            login_user(user, remember=remember)
+            flash("Вы вошли в аккаунт.", "success")
+            next_url = request.args.get("next")
+            if next_url and next_url.startswith("/"):
+                return redirect(next_url)
+            return redirect(url_for("profile"))
+
+    return render_template("login.html")
+
+
+@app.route("/logout", methods=["POST"])
+def logout():
+    logout_user()
+    flash("Вы вышли из аккаунта.", "success")
+    return redirect(url_for("index"))
+
+
+@app.route("/profile")
+@login_required
+def profile():
+    user = get_current_user()
+    favorite_products = []
+    for pid in user.get("favorites", []):
+        product = get_product_by_id(pid)
+        if product:
+            favorite_products.append(product)
+    cart_products, _ = build_cart_items(user.get("cart", {}))
+    return render_template(
+        "profile.html",
+        user_profile=user,
+        profile_orders=list(reversed(user.get("orders", []))),
+        favorite_products=favorite_products,
+        saved_cart=cart_products,
+    )
+
+
+@app.route("/profile/update", methods=["POST"])
+@login_required
+def update_profile():
+    user = get_current_user()
+    user["full_name"] = request.form.get("full_name", "").strip()
+    user["phone"] = request.form.get("phone", "").strip()
+    user["email"] = request.form.get("email", "").strip()
+    user["delivery_address"] = request.form.get("delivery_address", "").strip()
+    save_user(user)
+    g.current_user = user
+    flash("Данные профиля обновлены.", "success")
+    return redirect(url_for("profile"))
+
+
+@app.route("/profile/change-password", methods=["POST"])
+@login_required
+def change_password():
+    user = get_current_user()
+    current_password = request.form.get("current_password", "")
+    new_password = request.form.get("new_password", "")
+
+    if not check_password_hash(user.get("password_hash", ""), current_password):
+        flash("Текущий пароль введён неверно.", "error")
+    elif len(new_password) < 6:
+        flash("Новый пароль должен содержать минимум 6 символов.", "error")
+    else:
+        user["password_hash"] = generate_password_hash(new_password)
+        save_user(user)
+        g.current_user = user
+        flash("Пароль обновлён.", "success")
+
+    return redirect(url_for("profile"))
+
+
+@app.route("/api/favorites")
+def favorites_api():
+    favorite_products = []
+    for pid in get_favorites():
+        product = get_product_by_id(pid)
+        if product:
+            favorite_products.append({
+                "id": product["id"],
+                "title": product["title"],
+                "price": product["price"],
+                "image": product.get("main_image"),
+            })
+    return jsonify({"favorites": favorite_products})
+
+
+@app.route("/api/toggle_favorite/<int:pid>", methods=["POST"])
+def toggle_favorite(pid):
+    if not get_current_user():
+        return jsonify({"status": "error", "message": "login_required"}), 401
+
+    if not get_product_by_id(pid):
+        return jsonify({"status": "error", "message": "product_not_found"}), 404
+
+    favorites = get_favorites()
+    product_key = str(pid)
+    is_favorite = product_key in favorites
+
+    if is_favorite:
+        favorites = [item for item in favorites if item != product_key]
+    else:
+        favorites.append(product_key)
+
+    save_favorites(favorites)
+    return jsonify({
+        "status": "ok",
+        "is_favorite": not is_favorite,
+        "favorites_count": len(favorites),
+    })
+
+
 @app.route("/products")
 def products_page():
     category, price_range, sort_by = normalize_catalog_filters(
@@ -404,7 +806,7 @@ def products_page():
 
 @app.route("/product/<int:pid>")
 def product_detail(pid):
-    product = next((p for p in products if p["id"] == pid), None)
+    product = get_product_by_id(pid)
     if not product:
         return redirect(url_for("products_page"))
     return render_template("product.html", product=product)
@@ -414,49 +816,24 @@ def product_detail(pid):
 
 @app.route("/cart")
 def cart():
-    cart_data = get_cart()
-    cart_products = []
-    total = 0
-
-    for pid, qty in cart_data.items():
-        product = next((p for p in products if p["id"] == int(pid)), None)
-        if product:
-            cart_item = {
-                "id": product["id"],
-                "title": product["title"],
-                "price": product["price"],
-                "qty": qty,
-                "subtotal": qty * product["price"],
-                "main_image": product.get("main_image", None)
-            }
-            cart_products.append(cart_item)
-            total += cart_item["subtotal"]
-
+    cart_products, total = build_cart_items(get_cart())
     return render_template("cart.html", cart=cart_products, total=total)
 
 
 @app.route("/api/cart")
 def cart_api():
     """API endpoint для обновления виджета корзины"""
-    cart_data = get_cart()
-    cart_products = []
-    total = 0
-
-    for pid, qty in cart_data.items():
-        product = next((p for p in products if p["id"] == int(pid)), None)
-        if product:
-            cart_products.append({
-                "id": pid,
-                "title": product["title"],
-                "price": product["price"],
-                "qty": qty,
-                "subtotal": qty * product["price"],
-                "image": product.get("main_image", None)
-            })
-            total += qty * product["price"]
+    cart_products, total = build_cart_items(get_cart())
 
     return jsonify({
-        "cart": cart_products,
+        "cart": [{
+            "id": str(item["id"]),
+            "title": item["title"],
+            "price": item["price"],
+            "qty": item["qty"],
+            "subtotal": item["subtotal"],
+            "image": item.get("main_image"),
+        } for item in cart_products],
         "total": total
     })
 
@@ -554,26 +931,14 @@ def checkout():
     if not cart_data:
         return redirect(url_for("cart"))
 
-    cart_products = []
-    total = 0
-    for pid, qty in cart_data.items():
-        product = next((p for p in products if p["id"] == int(pid)), None)
-        if product:
-            cart_item = {
-                "id": product["id"],
-                "title": product["title"],
-                "price": product["price"],
-                "qty": qty,
-                "subtotal": qty * product["price"],
-                "main_image": product.get("main_image", None)
-            }
-            cart_products.append(cart_item)
-            total += cart_item["subtotal"]
+    cart_products, total = build_cart_items(cart_data)
+    user = get_current_user()
 
     return render_template(
         "checkout.html",
         cart=cart_products,
         total=total,
+        profile_defaults=user or {},
         yandex_maps_api_key=YANDEX_MAPS_API_KEY,
         yandex_maps_suggest_api_key=YANDEX_MAPS_SUGGEST_API_KEY,
         default_delivery_city=DEFAULT_DELIVERY_CITY,
@@ -584,6 +949,7 @@ def checkout():
 @app.route("/place_order", methods=["POST"])
 def place_order():
     try:
+        user = get_current_user()
         order_data = {
             "order_id": str(uuid.uuid4())[:8],
             "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
@@ -595,7 +961,8 @@ def place_order():
             },
             "payment_method": request.form.get("payment"),
             "cart": get_cart(),
-            "total": calculate_total(get_cart())
+            "total": calculate_total(get_cart()),
+            "username": user["username"] if user else None,
         }
         cart_items = []
         for pid, qty in order_data["cart"].items():
@@ -618,11 +985,33 @@ def place_order():
         txt_filename = f"{ORDERS_DIR}/order_{order_data['order_id']}.txt"
         save_order_to_txt(order_data, txt_filename)
 
+        if user:
+            user["full_name"] = order_data["customer"]["name"]
+            user["phone"] = order_data["customer"]["phone"]
+            user["email"] = order_data["customer"]["email"]
+            user["delivery_address"] = order_data["customer"]["delivery_address"]
+            user_orders = user.get("orders", [])
+            user_orders.append(build_order_summary(order_data))
+            user["orders"] = user_orders[-25:]
+            save_user(user)
+            g.current_user = user
+
         save_cart({})
         return render_template("order_success.html", order_id=order_data["order_id"])
 
     except Exception as e:
-        return render_template("checkout.html", error=str(e))
+        cart_products, total = build_cart_items(get_cart())
+        return render_template(
+            "checkout.html",
+            cart=cart_products,
+            total=total,
+            profile_defaults=get_current_user() or {},
+            yandex_maps_api_key=YANDEX_MAPS_API_KEY,
+            yandex_maps_suggest_api_key=YANDEX_MAPS_SUGGEST_API_KEY,
+            default_delivery_city=DEFAULT_DELIVERY_CITY,
+            default_map_center=DEFAULT_MAP_CENTER,
+            error=str(e),
+        )
 
 
 @app.route("/admin/upload/<int:product_id>", methods=["GET", "POST"])

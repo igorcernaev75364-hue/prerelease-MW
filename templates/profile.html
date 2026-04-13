@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="profile-page">
+    <div class="profile-hero glass-card animate__animated animate__fadeInDown">
+        <div>
+            <span class="profile-eyebrow"><i class="fas fa-id-card"></i> Личный кабинет</span>
+            <h1>{{ user_profile.full_name or user_profile.username }}</h1>
+            <p>Здесь сохраняются ваши заказы, избранное, корзина и данные для быстрого оформления.</p>
+        </div>
+        <div class="profile-stats">
+            <div class="profile-stat">
+                <strong>{{ profile_orders|length }}</strong>
+                <span>заказов</span>
+            </div>
+            <div class="profile-stat">
+                <strong>{{ favorite_products|length }}</strong>
+                <span>в избранном</span>
+            </div>
+            <div class="profile-stat">
+                <strong>{{ saved_cart|length }}</strong>
+                <span>в корзине</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="profile-grid">
+        <section class="profile-card glass-card">
+            <h2><i class="fas fa-user-pen"></i> Данные профиля</h2>
+            <form action="{{ url_for('update_profile') }}" method="POST" class="profile-form">
+                <label class="auth-field">
+                    <span>Логин</span>
+                    <input type="text" class="glass-input" value="{{ user_profile.username }}" disabled>
+                </label>
+                <label class="auth-field">
+                    <span>ФИО</span>
+                    <input type="text" name="full_name" class="glass-input" value="{{ user_profile.full_name }}">
+                </label>
+                <label class="auth-field">
+                    <span>Телефон</span>
+                    <input type="tel" name="phone" class="glass-input" value="{{ user_profile.phone }}">
+                </label>
+                <label class="auth-field">
+                    <span>Email</span>
+                    <input type="email" name="email" class="glass-input" value="{{ user_profile.email }}">
+                </label>
+                <label class="auth-field auth-field-full">
+                    <span>Адрес доставки</span>
+                    <input type="text" name="delivery_address" class="glass-input" value="{{ user_profile.delivery_address }}">
+                </label>
+                <button type="submit" class="auth-submit auth-field-full">
+                    <i class="fas fa-floppy-disk"></i>
+                    Сохранить данные
+                </button>
+            </form>
+        </section>
+
+        <section class="profile-card glass-card">
+            <h2><i class="fas fa-lock"></i> Безопасность</h2>
+            <form action="{{ url_for('change_password') }}" method="POST" class="profile-form">
+                <label class="auth-field">
+                    <span>Текущий пароль</span>
+                    <input type="password" name="current_password" class="glass-input" required autocomplete="current-password">
+                </label>
+                <label class="auth-field">
+                    <span>Новый пароль</span>
+                    <input type="password" name="new_password" class="glass-input" required minlength="6" autocomplete="new-password">
+                </label>
+                <button type="submit" class="auth-submit">
+                    <i class="fas fa-key"></i>
+                    Обновить пароль
+                </button>
+            </form>
+        </section>
+
+        <section class="profile-card glass-card profile-card-full">
+            <h2><i class="fas fa-cart-shopping"></i> Сохранённая корзина</h2>
+            {% if saved_cart %}
+            <div class="profile-orders">
+                {% for item in saved_cart %}
+                <article class="profile-order-item">
+                    <div class="profile-order-top">
+                        <strong>{{ item.title }}</strong>
+                        <span>{{ item.subtotal }}₽</span>
+                    </div>
+                    <div class="profile-order-meta">
+                        <span>{{ item.price }}₽ за штуку</span>
+                        <span>Количество: {{ item.qty }}</span>
+                        <span><a href="{{ url_for('cart') }}">Перейти в корзину</a></span>
+                    </div>
+                </article>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="profile-empty">Корзина сейчас пуста. Всё, что вы добавите после входа, будет сохраняться в аккаунте.</p>
+            {% endif %}
+        </section>
+
+        <section class="profile-card glass-card profile-card-full">
+            <h2><i class="fas fa-heart"></i> Избранное</h2>
+            {% if favorite_products %}
+            <div class="profile-favorites-grid">
+                {% for product in favorite_products %}
+                <a href="{{ url_for('product_detail', pid=product.id) }}" class="profile-favorite-item">
+                    <div class="profile-favorite-image">
+                        {% if product.main_image %}
+                        <img src="{{ url_for('static', filename='images/products/' + product.main_image) }}" alt="{{ product.title }}">
+                        {% else %}
+                        <i class="fas fa-bag-shopping"></i>
+                        {% endif %}
+                    </div>
+                    <div class="profile-favorite-info">
+                        <strong>{{ product.title }}</strong>
+                        <span>{{ product.price }}₽</span>
+                    </div>
+                </a>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="profile-empty">Пока ничего нет в избранном. Сохраняйте понравившиеся товары сердечком.</p>
+            {% endif %}
+        </section>
+
+        <section class="profile-card glass-card profile-card-full">
+            <h2><i class="fas fa-bag-shopping"></i> Последние заказы</h2>
+            {% if profile_orders %}
+            <div class="profile-orders">
+                {% for order in profile_orders %}
+                <article class="profile-order-item">
+                    <div class="profile-order-top">
+                        <strong>Заказ #{{ order["order_id"] }}</strong>
+                        <span>{{ order["timestamp"] }}</span>
+                    </div>
+                    <div class="profile-order-meta">
+                        <span>Сумма: {{ order["total"] }}₽</span>
+                        <span>Оплата: {{ order["payment_method"] }}</span>
+                        <span>Адрес: {{ order["delivery_address"] or 'Не указан' }}</span>
+                    </div>
+                    <ul class="profile-order-products">
+                        {% for item in order["items"] %}
+                        <li>{{ item.title }} × {{ item.qty }} — {{ item.subtotal }}₽</li>
+                        {% endfor %}
+                    </ul>
+                </article>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="profile-empty">После оформления заказов они будут сохраняться здесь.</p>
+            {% endif %}
+        </section>
+    </div>
+</div>
+{% endblock %}

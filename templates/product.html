@@ -74,6 +74,14 @@
                     <i class="fas {% if product.category == 'tshirts' %}fa-shirt{% elif product.category == 'hoodies' %}fa-shirt{% elif product.category == 'sweatshirts' %}fa-vest{% elif product.category == 'mugs' %}fa-mug-hot{% else %}fa-bag-shopping{% endif %}"></i>
                     {{ product.category_name }}
                 </span>
+                <button
+                    type="button"
+                    class="favorite-toggle favorite-toggle-inline {% if product.id in favorite_ids_int %}is-active{% endif %}"
+                    data-favorite-button
+                    data-product-id="{{ product.id }}"
+                    aria-label="Добавить в избранное">
+                    <i class="{% if product.id in favorite_ids_int %}fas{% else %}far{% endif %} fa-heart"></i>
+                </button>
             </div>
 
             <h1 class="product-detail-title">{{ product.title }}</h1>
@@ -172,6 +180,48 @@
                 item.classList.remove('active');
             });
             thumb.classList.add('active');
+        });
+    });
+})();
+
+(function() {
+    const favoriteButton = document.querySelector('[data-favorite-button]');
+    if (!favoriteButton) return;
+
+    function updateFavoriteButton(isFavorite) {
+        favoriteButton.classList.toggle('is-active', isFavorite);
+        const icon = favoriteButton.querySelector('i');
+        if (icon) {
+            icon.className = `${isFavorite ? 'fas' : 'far'} fa-heart`;
+        }
+    }
+
+    favoriteButton.addEventListener('click', function() {
+        fetch(`/api/toggle_favorite/{{ product.id }}`, {
+            method: 'POST',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(async function(response) {
+            const data = await response.json();
+            if (!response.ok) {
+                throw data;
+            }
+            updateFavoriteButton(data.is_favorite);
+            if (typeof showNotice === 'function') {
+                showNotice(data.is_favorite ? '❤ Товар добавлен в избранное' : 'Товар убран из избранного');
+            }
+        })
+        .catch(function(error) {
+            if (error && error.message === 'login_required') {
+                window.location.href = "{{ url_for('login', next=url_for('product_detail', pid=product.id)) }}";
+                return;
+            }
+            if (typeof showNotice === 'function') {
+                showNotice('Не удалось обновить избранное');
+            }
         });
     });
 })();

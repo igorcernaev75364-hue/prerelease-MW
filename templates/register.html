@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="auth-page">
+    <div class="auth-card glass-card animate__animated animate__fadeInUp">
+        <div class="auth-header">
+            <span class="auth-eyebrow"><i class="fas fa-user-plus"></i> Аккаунт</span>
+            <h1>Регистрация</h1>
+            <p>Создайте профиль, чтобы сохранять корзину, избранное, адрес доставки и историю заказов.</p>
+        </div>
+
+        <form action="{{ url_for('register') }}" method="POST" class="auth-form auth-form-wide">
+            <label class="auth-field">
+                <span>Логин</span>
+                <input type="text" name="username" class="glass-input" required autocomplete="username">
+            </label>
+
+            <label class="auth-field">
+                <span>Пароль</span>
+                <input type="password" name="password" class="glass-input" required minlength="6" autocomplete="new-password">
+            </label>
+
+            <label class="auth-field">
+                <span>ФИО</span>
+                <input type="text" name="full_name" class="glass-input" autocomplete="name">
+            </label>
+
+            <label class="auth-field">
+                <span>Телефон</span>
+                <input type="tel" name="phone" class="glass-input" autocomplete="tel">
+            </label>
+
+            <label class="auth-field">
+                <span>Email</span>
+                <input type="email" name="email" class="glass-input" autocomplete="email">
+            </label>
+
+            <label class="auth-field auth-field-full">
+                <span>Адрес доставки</span>
+                <input type="text" name="delivery_address" class="glass-input" autocomplete="street-address">
+            </label>
+
+            <label class="auth-checkbox auth-field-full">
+                <input type="checkbox" name="remember_me" value="1">
+                <span>Запомнить меня и не выходить на этом устройстве</span>
+            </label>
+
+            <button type="submit" class="auth-submit auth-field-full">
+                <i class="fas fa-sparkles"></i>
+                Создать аккаунт
+            </button>
+        </form>
+
+        <p class="auth-switch">
+            Уже есть аккаунт?
+            <a href="{{ url_for('login') }}">Войти</a>
+        </p>
+    </div>
+</div>
+{% endblock %}

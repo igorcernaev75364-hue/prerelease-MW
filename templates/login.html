@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="auth-page">
+    <div class="auth-card glass-card animate__animated animate__fadeInUp">
+        <div class="auth-header">
+            <span class="auth-eyebrow"><i class="fas fa-right-to-bracket"></i> Аккаунт</span>
+            <h1>Вход</h1>
+            <p>Войдите, чтобы хранить корзину, избранное, заказы и данные для оформления на этом устройстве.</p>
+        </div>
+
+        <form action="{{ url_for('login', next=request.args.get('next', '')) }}" method="POST" class="auth-form">
+            <label class="auth-field">
+                <span>Логин</span>
+                <input type="text" name="username" class="glass-input" required autocomplete="username">
+            </label>
+
+            <label class="auth-field">
+                <span>Пароль</span>
+                <input type="password" name="password" class="glass-input" required autocomplete="current-password">
+            </label>
+
+            <label class="auth-checkbox">
+                <input type="checkbox" name="remember_me" value="1">
+                <span>Запомнить меня и не выходить на этом устройстве</span>
+            </label>
+
+            <button type="submit" class="auth-submit">
+                <i class="fas fa-unlock-keyhole"></i>
+                Войти
+            </button>
+        </form>
+
+        <p class="auth-switch">
+            Нет аккаунта?
+            <a href="{{ url_for('register') }}">Создать аккаунт</a>
+        </p>
+    </div>
+</div>
+{% endblock %}
