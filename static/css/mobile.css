@@ -54,17 +54,31 @@
 
     .nav-links {
         width: 100%;
-        justify-content: space-between;
+        justify-content: flex-start;
         gap: 8px;
         flex-wrap: wrap;
     }
 
+    .nav-links > .nav-link,
     .nav-inline-form {
-        flex: 1 1 auto;
+        flex: 1 1 calc(50% - 4px);
     }
 
     .nav-button {
         width: 100%;
+    }
+
+    .nav-account-link span {
+        display: inline;
+        max-width: 80px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .nav-cart-link {
+        flex: 1 1 calc(50% - 4px);
+        justify-content: center;
     }
 
     .cart-count-header {

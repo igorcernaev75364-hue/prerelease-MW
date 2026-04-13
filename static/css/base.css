@@ -216,16 +216,35 @@ nav {
     display: flex;
     gap: 20px;
     align-items: center;
+    flex-wrap: wrap;
+    justify-content: flex-end;
 }
 
 .nav-inline-form {
     margin: 0;
+    display: flex;
 }
 
 .nav-button {
     border: none;
     cursor: pointer;
     font: inherit;
+}
+
+.nav-account-link {
+    min-width: 0;
+}
+
+.nav-account-link span {
+    max-width: 150px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.nav-cart-link {
+    min-width: 54px;
+    justify-content: center;
 }
 
 .nav-link {
@@ -1989,6 +2008,7 @@ nav {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 20px;
+    align-items: start;
 }
 
 .profile-card {
@@ -2083,6 +2103,11 @@ nav {
     display: flex;
     flex-direction: column;
     gap: 6px;
+}
+
+.profile-order-meta a {
+    color: #e9d5ff;
+    text-decoration: none;
 }
 
 /* ===== МОДАЛЬНОЕ ОКНО ПРЕДУПРЕЖДЕНИЯ ===== */

@@ -1,4 +1,27 @@
 @media (min-width: 769px) and (max-width: 1024px) {
+    .glass-nav {
+        padding: 14px 18px;
+    }
+
+    nav {
+        flex-wrap: wrap;
+        gap: 14px;
+    }
+
+    .nav-links {
+        width: 100%;
+        justify-content: flex-start;
+        gap: 10px;
+    }
+
+    .nav-inline-form {
+        flex: 0 0 auto;
+    }
+
+    .nav-account-link span {
+        max-width: 110px;
+    }
+
     /* Каталог */
     .catalog-container {
         flex-direction: column;
@@ -51,5 +74,37 @@
 
     .product-image-container {
         height: 160px;
+    }
+
+    .auth-page,
+    .profile-page {
+        padding-left: 18px;
+        padding-right: 18px;
+    }
+
+    .auth-card,
+    .profile-hero,
+    .profile-card {
+        padding: 22px;
+    }
+
+    .profile-hero {
+        flex-direction: column;
+    }
+
+    .profile-stats {
+        width: 100%;
+    }
+
+    .profile-stat {
+        flex: 1 1 calc(33.333% - 8px);
+    }
+
+    .profile-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .profile-favorites-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 }

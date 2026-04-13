@@ -1,5 +1,17 @@
 /* ===== ДЕСКТОПНАЯ ВЕРСИЯ (ширина > 1024px) ===== */
 @media (min-width: 1025px) {
+    .nav-links {
+        gap: 12px;
+    }
+
+    .nav-inline-form {
+        flex: 0 0 auto;
+    }
+
+    .nav-account-link span {
+        max-width: 140px;
+    }
+
     .catalog-container {
         display: flex;
         flex-direction: row;
@@ -40,5 +52,17 @@
 
     .current-price {
         font-size: 2rem;
+    }
+
+    .profile-grid {
+        grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr);
+    }
+
+    .profile-card-full {
+        grid-column: 1 / -1;
+    }
+
+    .profile-favorites-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
     }
 }

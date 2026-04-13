@@ -48,23 +48,23 @@
                     <span>Команда</span>
                 </a>
                 {% if current_user %}
-                <a href="{{ url_for('profile') }}" class="nav-link">
+                <a href="{{ url_for('profile') }}" class="nav-link nav-account-link">
                     <i class="fas fa-user-circle"></i>
                     <span>{{ current_user.username }}</span>
                 </a>
                 <form action="{{ url_for('logout') }}" method="POST" class="nav-inline-form">
-                    <button type="submit" class="nav-link nav-button">
+                    <button type="submit" class="nav-link nav-button nav-account-link">
                         <i class="fas fa-right-from-bracket"></i>
                         <span>Выйти</span>
                     </button>
                 </form>
                 {% else %}
-                <a href="{{ url_for('login') }}" class="nav-link">
+                <a href="{{ url_for('login') }}" class="nav-link nav-account-link">
                     <i class="fas fa-right-to-bracket"></i>
                     <span>Войти</span>
                 </a>
                 {% endif %}
-                <a href="{{ url_for('cart') }}" class="nav-link cart-icon-header">
+                <a href="{{ url_for('cart') }}" class="nav-link nav-cart-link cart-icon-header">
                     <i class="fas fa-shopping-cart"></i>
                     <span class="cart-count-header">{{ cart_items_count }}</span>
                 </a>
