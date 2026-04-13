@@ -1,9 +1,7 @@
 from flask import Flask, render_template, session, request, jsonify, redirect, url_for
-from flask_session import Session
 from werkzeug.utils import secure_filename
 import os
 import json
-import tempfile
 from datetime import datetime
 import uuid
 
@@ -53,16 +51,17 @@ YANDEX_MAPS_SUGGEST_API_KEY = get_first_env(
     "API_KEY",
 )
 DEFAULT_DELIVERY_CITY = "Москва"
+if not YANDEX_MAPS_API_KEY:
+    YANDEX_MAPS_API_KEY = YANDEX_MAPS_SUGGEST_API_KEY
+if not YANDEX_MAPS_SUGGEST_API_KEY:
+    YANDEX_MAPS_SUGGEST_API_KEY = YANDEX_MAPS_API_KEY
 DEFAULT_MAP_CENTER = [37.6176, 55.7558]
 
 # Настройки для Render
-app.config["SECRET_KEY"] = os.environ.get('SECRET_KEY', os.urandom(24))
+app.config["SECRET_KEY"] = get_first_env("SECRET_KEY", "FLASK_SECRET_KEY") or "mw-store-dev-secret"
 app.config["SESSION_PERMANENT"] = False
-app.config["SESSION_TYPE"] = "filesystem"
-app.config["SESSION_FILE_DIR"] = os.path.join(tempfile.gettempdir(), "mw_store_flask_session")
 
 # Создаём папку для сессий
-os.makedirs(app.config["SESSION_FILE_DIR"], exist_ok=True)
 
 # Настройки для загрузки файлов
 UPLOAD_FOLDER = 'static/images/products'
@@ -76,7 +75,6 @@ if not os.path.exists(ORDERS_DIR):
     os.makedirs(ORDERS_DIR)
 
 # Инициализируем Session
-Session(app)
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
